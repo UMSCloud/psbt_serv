@@ -20,34 +20,45 @@ app.post('/mergePsbt', (req, res) => {
 
     const { sellerBase64, buyerBase64 } = req.body;
 
-    const sellerSignedPsbt = Psbt.fromBase64(sellerBase64);
+    try{
+        const sellerSignedPsbt = Psbt.fromBase64(sellerBase64);
 
-    const buyerSignedPsbt = Psbt.fromBase64(`${buyerBase64}`);
-
-
-    if ((sellerSignedPsbt && sellerSignedPsbt.inputCount < 1)
-        && buyerSignedPsbt && buyerSignedPsbt.inputCount < 3) {
+        const buyerSignedPsbt = Psbt.fromBase64(`${buyerBase64}`);
+    
+    
+        if ((sellerSignedPsbt && sellerSignedPsbt.inputCount < 1)
+            && buyerSignedPsbt && buyerSignedPsbt.inputCount < 3) {
+            res.status(200);
+            res.send({
+                result: { status: -1, msg: 'psbt is invalid' },
+            });
+        }
+    
+        (buyerSignedPsbt.data.globalMap.unsignedTx).tx.ins[2] = (sellerSignedPsbt.data.globalMap.unsignedTx).tx.ins[0];
+        buyerSignedPsbt.data.inputs[2] = sellerSignedPsbt.data.inputs[0];
+    
+        buyerSignedPsbt.finalizeAllInputs();
+        const tx = buyerSignedPsbt.extractTransaction();
+        const rawtx = tx.toHex();
+        const txid = tx.getId();
         res.status(200);
         res.send({
-            result: { status: -1, msg: 'psbt is invalid' },
+            result: {
+                status: 0,
+                txId: txid,
+                rawTxHex: rawtx
+            }
+        });
+    }catch(e){
+        res.status(200);
+        res.send({
+            result: {
+                status: -1,
+                msg: e.message,
+            }
         });
     }
-
-    (buyerSignedPsbt.data.globalMap.unsignedTx).tx.ins[2] = (sellerSignedPsbt.data.globalMap.unsignedTx).tx.ins[0];
-    buyerSignedPsbt.data.inputs[2] = sellerSignedPsbt.data.inputs[0];
-
-    buyerSignedPsbt.finalizeAllInputs();
-    const tx = buyerSignedPsbt.extractTransaction();
-    const rawtx = tx.toHex();
-    const txid = tx.getId();
-    res.status(200);
-    res.send({
-        result: {
-            status: 0,
-            txId: txid,
-            rawTxHex: rawtx
-        }
-    });
+    
 });
 
 
