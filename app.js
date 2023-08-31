@@ -2,7 +2,7 @@
 
 const { Buffer } = require('buffer');
 const ecc = require('@bitcoinerlab/secp256k1');
-const { Psbt, initEccLib } = require('bitcoinjs-lib');
+const { Psbt, initEccLib, networks } = require('bitcoinjs-lib');
 const express = require('express');
 const app = express();
 initEccLib(ecc);
@@ -18,25 +18,49 @@ app.post('/test', (req, res) => {
 
 app.post('/mergePsbt', (req, res) => {
 
-    const { sellerBase64, buyerBase64 } = req.body;
+    const { isMainNet = false, sellerBase64, buyerBase64, platAddress = "tb1qmvjxuhtnpx577k26dw4y29jtd45mlh75cwl9rp", platFee = 1000 } = req.body;
 
-    try{
-        const sellerSignedPsbt = Psbt.fromBase64(sellerBase64);
+    const network =
+        isMainNet == true
+            ? networks.bitcoin
+            : networks.testnet;
 
-        const buyerSignedPsbt = Psbt.fromBase64(`${buyerBase64}`);
-    
-    
+    try {
+        const sellerSignedPsbt = Psbt.fromBase64(sellerBase64, { network });
+
+        const buyerSignedPsbt = Psbt.fromBase64(`${buyerBase64}`, { network });
+
+
         if ((sellerSignedPsbt && sellerSignedPsbt.inputCount < 1)
             && buyerSignedPsbt && buyerSignedPsbt.inputCount < 3) {
             res.status(200);
             res.send({
                 result: { status: -1, msg: 'psbt is invalid' },
             });
+            return;
         }
-    
+
+
+        if (buyerSignedPsbt.txOutputs[3].value != platFee) {
+            res.status(200);
+            res.send({
+                result: { status: -1, msg: 'platform fee is wrong' },
+            });
+            return
+        }
+
+        if (buyerSignedPsbt.txOutputs[3].address != platAddress) {
+            res.status(200);
+            res.send({
+                result: { status: -1, msg: 'platform address is wrong', plat: buyerSignedPsbt.txOutputs[3].address, platAddress: platAddress },
+            });
+            return
+        }
+
+
         (buyerSignedPsbt.data.globalMap.unsignedTx).tx.ins[2] = (sellerSignedPsbt.data.globalMap.unsignedTx).tx.ins[0];
         buyerSignedPsbt.data.inputs[2] = sellerSignedPsbt.data.inputs[0];
-    
+
         buyerSignedPsbt.finalizeAllInputs();
         const tx = buyerSignedPsbt.extractTransaction();
         const rawtx = tx.toHex();
@@ -49,7 +73,7 @@ app.post('/mergePsbt', (req, res) => {
                 rawTxHex: rawtx
             }
         });
-    }catch(e){
+    } catch (e) {
         res.status(200);
         res.send({
             result: {
@@ -58,7 +82,7 @@ app.post('/mergePsbt', (req, res) => {
             }
         });
     }
-    
+
 });
 
 
