@@ -86,10 +86,17 @@ app.post('/mergePsbt', (req, res) => {
 });
 
 
-app.get('/', (req, res) => {
+app.get('/status', (req, res) => {
 
     res.status(200);
-    res.send("Welcome to root URL of Server 1");
+    res.send(
+        {
+            result: {
+                status: 0,
+                msg: "server is alive",
+            }
+        }
+    );
 })
 
 module.exports = app;
