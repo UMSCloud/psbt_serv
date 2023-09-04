@@ -2,9 +2,9 @@
   "name": "test",
   "version": "1.0.0",
   "description": "test for http client",
-  "main": "index.js",
+  "main": "psbt.js",
   "scripts": {
-    "start": "nodemon index.js",
+    "start": "nodemon psbt.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
