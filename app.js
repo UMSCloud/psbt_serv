@@ -89,7 +89,14 @@ app.post('/mergePsbt', (req, res) => {
 app.get('/status', (req, res) => {
 
     res.status(200);
-    res.send("server is alive");
+    res.send(
+        {
+            result: {
+                status: 0,
+                msg: "server is alive",
+            }
+        }
+    );
 })
 
 module.exports = app;
