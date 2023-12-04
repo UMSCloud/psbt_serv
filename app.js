@@ -4,8 +4,11 @@ const { Buffer } = require('buffer');
 const ecc = require('@bitcoinerlab/secp256k1');
 const { Psbt, initEccLib, networks } = require('bitcoinjs-lib');
 const express = require('express');
+const mempool = require('@mempool/mempool.js');
 const app = express();
 initEccLib(ecc);
+
+
 
 app.use(express.json());
 app.request.accepts('application/json');
@@ -14,6 +17,67 @@ app.post('/test', (req, res) => {
     const { sellerBase64, buyerSignedPsbt } = req.body;
 
     res.send(`Welcome \n${sellerBase64}, \n\n\n${buyerSignedPsbt}`);
+});
+
+function generateTxidFromHash(hash) {
+    return hash.reverse().toString('hex');
+}
+
+app.post('/checkInput', async (req, res) => {
+    const { isMainNet = false, buyerBase64 } = req.body;
+    const network =
+        isMainNet == true
+            ? networks.bitcoin
+            : networks.testnet;
+    const networkStr = isMainNet == true ? 'mainnet' : "testnet";
+    try {
+
+        const buyerSignedPsbt = Psbt.fromBase64(`${buyerBase64}`, { network });
+
+        const { bitcoin: { transactions } } = mempool({
+            hostname: 'mempool.space',
+            network: networkStr
+        });
+
+        let result = [];
+        let spent = false;
+        for (let index = 0; index < buyerSignedPsbt.inputCount; index++) {
+            const txInput = buyerSignedPsbt.txInputs[index];
+            const txid = generateTxidFromHash(txInput.hash);
+            const idx = txInput.index; //txInput.index;
+
+
+            const txOutspend = await transactions.getTxOutspend({
+                txid,
+                vout: idx,
+            });
+
+            // result.push({ "input": txid + ":" + idx, 'spend': txOutspend['spent'] });
+            if (txOutspend['spent'] == true) {
+                spent = true;
+                break;
+            }
+        }
+
+        res.status(200);
+        res.send({
+            result: {
+                status: 0,
+                // inputs: result,
+                spent: spent
+            }
+        });
+
+
+    } catch (e) {
+        res.status(200);
+        res.send({
+            result: {
+                status: -1,
+                msg: e.message,
+            }
+        });
+    }
 });
 
 app.post('/mergePsbt', (req, res) => {
