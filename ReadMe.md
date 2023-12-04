@@ -2,4 +2,4 @@
 
 1. npm i 
 
-2. nohup node index.js &
+2. npm start or use pm2 service.
