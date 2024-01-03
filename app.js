@@ -157,7 +157,7 @@ app.get('/status', (req, res) => {
         {
             result: {
                 status: 0,
-                msg: "server is alive",
+                msg: "server is alive, v1.0",
             }
         }
     );
