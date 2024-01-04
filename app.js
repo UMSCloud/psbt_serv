@@ -6,6 +6,8 @@ const { Psbt, initEccLib, networks } = require('bitcoinjs-lib');
 const express = require('express');
 const mempool = require('@mempool/mempool.js');
 const app = express();
+const request = require('request');
+const util = require('util');
 initEccLib(ecc);
 
 
@@ -46,17 +48,42 @@ app.post('/checkInput', async (req, res) => {
             const txid = generateTxidFromHash(txInput.hash);
             const idx = txInput.index; //txInput.index;
 
+            let options = {
+                url: "https://btc-test-api.bidder.top/",
+                method: "post",
+                headers:
+                {
+                    "content-type": "text/plain",
+                },
+                auth: {
+                    user: "rpc",
+                    pass: "rpc"
+                },
+                body: JSON.stringify({ "jsonrpc": "1.0", "id": "curlsandbox", "method": "gettxout", "params": [txid, idx] })
+            };
 
-            const txOutspend = await transactions.getTxOutspend({
-                txid,
-                vout: idx,
-            });
+            const requestPromise = util.promisify(request);
+            const response = await requestPromise(options);
+            const respJson = JSON.parse(response.body);
+            // console.log('response', respJson);
 
-            // result.push({ "input": txid + ":" + idx, 'spend': txOutspend['spent'] });
-            if (txOutspend['spent'] == true) {
+            if (respJson.result === null) {
                 spent = true;
                 break;
+            } else {
+                // console.log('value', respJson.result.value);
             }
+
+            // const txOutspend = await transactions.getTxOutspend({
+            //     txid,
+            //     vout: idx,
+            // });
+
+            // // result.push({ "input": txid + ":" + idx, 'spend': txOutspend['spent'] });
+            // if (txOutspend['spent'] == true) {
+            //     spent = true;
+            //     break;
+            // }
         }
 
         res.status(200);
